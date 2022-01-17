@@ -708,6 +708,7 @@ function partition() {
             btrfs subvolume create "/mnt/${SUBVOLUME[1]}"
         done
         umount /mnt
+    fi
 
         # mount subvolumes
         mount -o "subvol=${BTRFS_SUBVOLUME_ROOT[1]},$PARTITION_OPTIONS,compress=zstd" "$DEVICE_ROOT" "/mnt"

@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-set -eu
+set -e
 
 # Arch Linux Install Script (alis) installs unattended, automated
 # and customized Arch Linux system.
 # Copyright (C) 2022 picodotdev
 
-source "alis-commons.sh"
+function do_reboot() {
+    umount -R /mnt/boot
+    umount -R /mnt
+    reboot
+}
 
 do_reboot
 

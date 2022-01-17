@@ -3,7 +3,7 @@ set -e
 
 # Arch Linux Install Script (alis) installs unattended, automated
 # and customized Arch Linux system.
-# Copyright (C) 2021 picodotdev
+# Copyright (C) 2022 picodotdev
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@ function sanitize_variables() {
     CUSTOM_SHELL=$(sanitize_variable "$CUSTOM_SHELL")
     DESKTOP_ENVIRONMENT=$(sanitize_variable "$DESKTOP_ENVIRONMENT")
     DISPLAY_DRIVER=$(sanitize_variable "$DISPLAY_DRIVER")
-    DISPLAY_DRIVER_HARDWARE_ACCELERATION_INTEL=$(sanitize_variable "$DISPLAY_DRIVER_HARDWARE_ACCELERATION_INTEL")
+    DISPLAY_DRIVER_HARDWARE_VIDEO_ACCELERATION_INTEL=$(sanitize_variable "$DISPLAY_DRIVER_HARDWARE_VIDEO_ACCELERATION_INTEL")
     SYSTEMD_UNITS=$(sanitize_variable "$SYSTEMD_UNITS")
 
     for I in "${BTRFS_SUBVOLUMES_MOUNTPOINTS[@]}"; do
@@ -175,8 +175,8 @@ function check_variables() {
     check_variables_boolean "FASTBOOT" "$FASTBOOT"
     check_variables_boolean "FRAMEBUFFER_COMPRESSION" "$FRAMEBUFFER_COMPRESSION"
     check_variables_boolean "DISPLAY_DRIVER_DDX" "$DISPLAY_DRIVER_DDX"
-    check_variables_boolean "DISPLAY_DRIVER_HARDWARE_ACCELERATION" "$DISPLAY_DRIVER_HARDWARE_ACCELERATION"
-    check_variables_list "DISPLAY_DRIVER_HARDWARE_ACCELERATION_INTEL" "$DISPLAY_DRIVER_HARDWARE_ACCELERATION_INTEL" "intel-media-driver libva-intel-driver" "false" "true"
+    check_variables_boolean "DISPLAY_DRIVER_HARDWARE_VIDEO_ACCELERATION" "$DISPLAY_DRIVER_HARDWARE_VIDEO_ACCELERATION"
+    check_variables_list "DISPLAY_DRIVER_HARDWARE_VIDEO_ACCELERATION_INTEL" "$DISPLAY_DRIVER_HARDWARE_VIDEO_ACCELERATION_INTEL" "intel-media-driver libva-intel-driver" "false" "true"
     check_variables_value "TIMEZONE" "$TIMEZONE"
     check_variables_boolean "REFLECTOR" "$REFLECTOR"
     check_variables_value "PACMAN_MIRROR" "$PACMAN_MIRROR"
@@ -204,7 +204,7 @@ function check_variables() {
     check_variables_value "HOOKS" "$HOOKS"
     check_variables_list "BOOTLOADER" "$BOOTLOADER" "grub refind systemd" "true" "true"
     check_variables_list "CUSTOM_SHELL" "$CUSTOM_SHELL" "bash zsh dash fish" "true" "true"
-    check_variables_list "DESKTOP_ENVIRONMENT" "$DESKTOP_ENVIRONMENT" "gnome kde xfce mate cinnamon lxde i3-wm i3-gaps deepin budgie bspwm" "false" "true"
+    check_variables_list "DESKTOP_ENVIRONMENT" "$DESKTOP_ENVIRONMENT" "gnome kde xfce mate cinnamon lxde i3-wm i3-gaps deepin budgie bspwm awesome qtile openbox" "false" "true"
     check_variables_boolean "PACKAGES_MULTILIB" "$PACKAGES_MULTILIB"
     check_variables_boolean "PACKAGES_INSTALL" "$PACKAGES_INSTALL"
     check_variables_boolean "VAGRANT" "$VAGRANT"
@@ -596,9 +596,11 @@ function partition() {
     PARTITION_ROOT_NUMBER="$PARTITION_ROOT"
     PARTITION_BOOT_NUMBER="${PARTITION_BOOT_NUMBER//\/dev\/sda/}"
     PARTITION_BOOT_NUMBER="${PARTITION_BOOT_NUMBER//\/dev\/nvme0n1p/}"
+    PARTITION_BOOT_NUMBER="${PARTITION_BOOT_NUMBER//\/dev\/vda/}"
     PARTITION_BOOT_NUMBER="${PARTITION_BOOT_NUMBER//\/dev\/mmcblk0p/}"
     PARTITION_ROOT_NUMBER="${PARTITION_ROOT_NUMBER//\/dev\/sda/}"
     PARTITION_ROOT_NUMBER="${PARTITION_ROOT_NUMBER//\/dev\/nvme0n1p/}"
+    PARTITION_ROOT_NUMBER="${PARTITION_ROOT_NUMBER//\/dev\/vda/}"
     PARTITION_ROOT_NUMBER="${PARTITION_ROOT_NUMBER//\/dev\/mmcblk0p/}"
 
     # partition
@@ -708,7 +710,6 @@ function partition() {
             btrfs subvolume create "/mnt/${SUBVOLUME[1]}"
         done
         umount /mnt
-    fi
 
         # mount subvolumes
         mount -o "subvol=${BTRFS_SUBVOLUME_ROOT[1]},$PARTITION_OPTIONS,compress=zstd" "$DEVICE_ROOT" "/mnt"
@@ -1039,11 +1040,11 @@ function display_driver() {
                 ;;
         esac
     fi
-    if [ "$DISPLAY_DRIVER_HARDWARE_ACCELERATION" == "true" ]; then
+    if [ "$DISPLAY_DRIVER_HARDWARE_VIDEO_ACCELERATION" == "true" ]; then
         case "$DISPLAY_DRIVER" in
             "intel" )
-                if [ -n "$DISPLAY_DRIVER_HARDWARE_ACCELERATION_INTEL" ]; then
-                    PACKAGES_HARDWARE_ACCELERATION=$DISPLAY_DRIVER_HARDWARE_ACCELERATION_INTEL
+                if [ -n "$DISPLAY_DRIVER_HARDWARE_VIDEO_ACCELERATION_INTEL" ]; then
+                    PACKAGES_HARDWARE_ACCELERATION="$DISPLAY_DRIVER_HARDWARE_VIDEO_ACCELERATION_INTEL"
                     PACKAGES_HARDWARE_ACCELERATION_MULTILIB=""
                 fi
                 ;;
@@ -1456,7 +1457,7 @@ Operation = Upgrade
 Target = systemd
 
 [Action]
-Description = Updating systemd-boot...
+Description = Updating systemd-boot
 When = PostTransaction
 Exec = /usr/bin/bootctl update
 EOT
@@ -1658,6 +1659,15 @@ function desktop_environment() {
         "bspwm" )
             desktop_environment_bspwm
             ;;
+        "awesome" )
+            desktop_environment_awesome
+            ;;
+        "qtile" )
+            desktop_environment_qtile
+            ;;
+        "openbox" )
+                desktop_environment_openbox
+                ;;
     esac
 
     arch-chroot /mnt systemctl set-default graphical.target
@@ -1716,6 +1726,21 @@ function desktop_environment_budgie() {
 
 function desktop_environment_bspwm() {
     pacman_install "bspwm lightdm lightdm-gtk-greeter"
+    arch-chroot /mnt systemctl enable lightdm.service
+}
+
+function desktop_environment_awesome() {
+    pacman_install "awesome vicious xterm lightdm lightdm-gtk-greeter xorg-server"
+    arch-chroot /mnt systemctl enable lightdm.service
+}
+
+function desktop_environment_qtile() {
+    pacman_install "qtile xterm lightdm lightdm-gtk-greeter xorg-server"
+    arch-chroot /mnt systemctl enable lightdm.service
+}
+
+function desktop_environment_openbox() {
+    pacman_install "openbox obconf xterm lightdm lightdm-gtk-greeter xorg-server"
     arch-chroot /mnt systemctl enable lightdm.service
 }
 
@@ -2024,4 +2049,3 @@ function main() {
 }
 
 main $@
-
