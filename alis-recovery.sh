@@ -91,6 +91,7 @@ function sanitize_variables() {
     PARTITION_MODE=$(sanitize_variable "$PARTITION_MODE")
     PARTITION_CUSTOMMANUAL_BOOT=$(sanitize_variable "$PARTITION_CUSTOMMANUAL_BOOT")
     PARTITION_CUSTOMMANUAL_ROOT=$(sanitize_variable "$PARTITION_CUSTOMMANUAL_ROOT")
+    FILE_SYSTEM_TYPE=$(sanitize_variable "$FILE_SYSTEM_TYPE")
 }
 
 function sanitize_variable() {
@@ -176,6 +177,17 @@ function check_variables_size() {
 
 function warning() {
     echo -e "${LIGHT_BLUE}Welcome to Arch Linux Install Script Recovery${NC}"
+    echo ""
+    echo "We will mount your system based on the settings"
+    echo "of the alis-recovery.conf file."
+    echo
+    echo "You will need to arch-chroot into /mnt"
+    echo "arch-chroot /mnt"
+    echo
+    echo "or you can set the parameter CHROOT in the alis-recovery.conf to true."
+    echo
+    echo "Once recovery tasks are finalized execute following commands:"
+    echo "exit, umount -R /mnt and reboot."
     echo ""
     read -p "Do you want to continue? [y/N] " yn
     case $yn in
@@ -374,7 +386,7 @@ function partition() {
     if [ "$FILE_SYSTEM_TYPE" == "btrfs" ]; then
         # mount subvolumes
         mount -o "subvol=${BTRFS_SUBVOLUME_ROOT[1]},$PARTITION_OPTIONS,compress=zstd" "$DEVICE_ROOT" "/mnt"
-        mkdir "/mnt/boot"
+        mkdir -p /mnt/boot
         mount -o "$PARTITION_OPTIONS_BOOT" "$PARTITION_BOOT" "/mnt/boot"
         for I in "${BTRFS_SUBVOLUMES_MOUNTPOINTS[@]}"; do
             IFS=',' SUBVOLUME=($I)
@@ -394,23 +406,19 @@ function partition() {
     else
         mount -o "$PARTITION_OPTIONS_ROOT" "$DEVICE_ROOT" /mnt
 
-        mkdir /mnt/boot
+        mkdir -p /mnt/boot
         mount -o "$PARTITION_OPTIONS_BOOT" "$PARTITION_BOOT" /mnt/boot
     fi
 }
 
 function recovery() {
-    arch-chroot /mnt /usr/bin/bash
+    arch-chroot /mnt
 }
 
 function end() {
-    if [ "$CHROOT" == "true" ]; then
-        echo ""
-        echo "Recovery finalized. You must do an explicit reboot (./alis-reboot.sh)."
-    else
-        echo ""
-        echo "Recovery started. You must do an explicit reboot after finalize recovery (exit if in arch-chroot, ./alis-reboot.sh)."
-    fi
+    echo ""
+    echo -e "${GREEN}Recovery started.${NC} You must do an explicit reboot after finalize recovery (exit if in arch-chroot, ./alis-reboot.sh)."
+    echo ""
 }
 
 function do_reboot() {
@@ -435,3 +443,14 @@ function main() {
 }
 
 main
+echo
+echo "Your system has been mounted in /mnt."
+echo "Chroot into your system with"
+echo "arch-chroot /mnt"
+echo "Once recovery tasks are finalized execute following commands:"
+echo "To get out of arch-chroot"
+echo "     exit"
+echo "To unmount"
+echo "     umount -R /mnt"
+echo "Now you can reboot."
+echo "     reboot"
